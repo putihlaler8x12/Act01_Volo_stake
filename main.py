@@ -475,3 +475,56 @@ def emit_bootstrap(la: list[str]) -> None:
     ]
     for pid in range(1, POOL_COUNT + 1):
         kind = "Native" if pid % 2 == 1 else "Erc20"
+        lock = locks[(pid - 1) % len(locks)]
+        bps = bps_list[(pid - 1) % len(bps_list)]
+        mn = mins[(pid - 1) % len(mins)]
+        cap = f"{pid * 37 + 11} ether"
+        maxdep = f"{pid % 7 + 1} ether" if pid % 3 != 0 else "0"
+        tag = HEX32[pid % len(HEX32)]
+        w(la, f"        pools[{pid}] = VoloPoolLine({{")
+        w(la, f"            assetKind: VoloAssetKind.{kind},")
+        w(la, "            phase: VoloPoolPhase.Live,")
+        w(la, f"            lockSeconds: uint64({lock}),")
+        w(la, "            openedAt: uint64(block.timestamp),")
+        w(la, f"            rewardBpsAnnual: {bps},")
+        w(la, f"            minDepositWei: {mn},")
+        w(la, f"            maxDepositWei: {maxdep},")
+        w(la, f"            capWei: {cap},")
+        w(la, "            totalStakedWei: 0,")
+        w(la, "            rewardAccPerShare: 0,")
+        w(la, "            lastAccrualTs: block.timestamp,")
+        w(la, f"            laneTag: {tag}")
+        w(la, "        });")
+        w(la, f"        emit Opened({pid}, uint8(VoloAssetKind.{kind}), uint64({lock}), {bps});")
+    w(la, "    }")
+    w(la, "")
+
+
+def emit_views(la: list[str]) -> None:
+    w(la, "  // ── indexed readers (generated lanes) ─────────────────────────────────")
+    # fix indentation - use 4 spaces consistently
+    la[-1] = "    // ── indexed readers (generated lanes) ─────────────────────────────────"
+    for n in range(VIEW_BATCH):
+        w(la, f"    function peekLane_{n}(uint256 poolId, address staker) external view returns (")
+        w(la, "        uint256 principal,")
+        w(la, "        uint256 pending,")
+        w(la, "        uint64 unlockAt,")
+        w(la, "        bytes32 digest")
+        w(la, "    ) {")
+        w(la, "        VoloPosition storage pos = positions[poolId][staker];")
+        w(la, "        principal = pos.principalWei;")
+        w(la, "        pending = _pendingReward(poolId, staker);")
+        w(la, "        unlockAt = pos.unlockAt;")
+        w(la, f"        digest = keccak256(abi.encode(poolId, staker, pending, _SALT_{n % len(HEX32)}));")
+        w(la, "    }")
+        w(la, "")
+    for n in range(18):
+        w(la, f"    function poolSnapshot_{n}(uint256 poolId) external view returns (")
+        w(la, "        uint256 staked,")
+        w(la, "        uint256 accPerShare,")
+        w(la, "        uint256 bps,")
+        w(la, "        uint8 phaseRaw")
+        w(la, "    ) {")
+        w(la, "        VoloPoolLine storage p = pools[poolId];")
+        w(la, "        staked = p.totalStakedWei;")
+        w(la, "        accPerShare = p.rewardAccPerShare;")
