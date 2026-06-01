@@ -104,3 +104,56 @@ def emit_contract_start(la: list[str]) -> None:
     w(la, "contract Act01_Volo_stake {")
     w(la, "    // ── faults ───────────────────────────────────────────────────────────")
     errs = [
+        ("VS_NotPitMaster", "Caller is not pitMaster."),
+        ("VS_DeskFrozen", "Operations halted while deskFrozen."),
+        ("VS_ZeroAddr", "Zero address rejected."),
+        ("VS_ZeroAmt", "Zero amount rejected."),
+        ("VS_Reentered", "Reentrancy guard tripped."),
+        ("VS_PoolMissing", "Pool id not provisioned."),
+        ("VS_PoolClosed", "Pool not accepting deposits."),
+        ("VS_LockActive", "Stake still inside lock window."),
+        ("VS_InsufficientStake", "Withdraw exceeds position."),
+        ("VS_InsufficientReward", "Reward bucket empty."),
+        ("VS_CapExceeded", "Pool or lane cap exceeded."),
+        ("VS_BadEpoch", "Epoch index out of range."),
+        ("VS_BadBps", "Basis points out of allowed band."),
+        ("VS_NativeOnly", "Pool expects native asset."),
+        ("VS_TokenOnly", "Pool expects ERC20 asset."),
+        ("VS_TokenUnset", "ERC20 stake token not configured."),
+        ("VS_AlreadySet", "Immutable lane anchor already bound."),
+        ("VS_BelowMin", "Deposit below pool minimum."),
+        ("VS_AboveMax", "Deposit above pool maximum."),
+        ("VS_NoReward", "Nothing to claim."),
+        ("VS_BadHandoff", "Invalid pitMaster handoff target."),
+        ("VS_EpochStale", "Epoch snapshot not yet advanced."),
+        ("VS_LineVoid", "Line id retired."),
+        ("VS_DigestMismatch", "Attestation digest mismatch."),
+    ]
+    for name, _ in errs:
+        w(la, f"    error {name}();")
+    for i in range(24, 58):
+        w(la, f"    error VS_LaneFault_{i}();")
+    w(la, "")
+    w(la, "    // ── events (short verbs) ─────────────────────────────────────────────")
+    w(la, "    event Opened(uint256 indexed poolId, uint8 assetKind, uint64 lockSecs, uint256 rewardBps);")
+    w(la, "    event Topped(address indexed staker, uint256 indexed poolId, uint256 amount, uint64 unlockAt);")
+    w(la, "    event Pulled(address indexed staker, uint256 indexed poolId, uint256 amount, uint256 rewardPaid);")
+    w(la, "    event Claimed(address indexed staker, uint256 indexed poolId, uint256 reward);")
+    w(la, "    event Compounded(address indexed staker, uint256 indexed poolId, uint256 addedPrincipal);")
+    w(la, "    event EpochShifted(uint256 indexed epochId, uint64 wallTime, uint256 totalStaked);")
+    w(la, "    event Frozen(bool deskFrozen, address indexed by);")
+    w(la, "    event Handed(address indexed prev, address indexed next);")
+    w(la, "    event Tuned(uint256 indexed poolId, uint256 rewardBps, uint256 minDeposit);")
+    for i in range(12):
+        w(la, f"    event Pulse_{i}(uint256 indexed lineId, address indexed actor, uint256 weiAmt);")
+    w(la, "")
+
+
+def emit_types_and_state(la: list[str]) -> None:
+    w(la, "    enum VoloAssetKind { Native, Erc20 }")
+    w(la, "    enum VoloPoolPhase { Dormant, Live, Sunset }")
+    w(la, "")
+    w(la, "    struct VoloPoolLine {")
+    w(la, "        VoloAssetKind assetKind;")
+    w(la, "        VoloPoolPhase phase;")
+    w(la, "        uint64 lockSeconds;")
