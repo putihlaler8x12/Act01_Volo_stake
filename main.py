@@ -422,3 +422,56 @@ def emit_internal_core(la: list[str]) -> None:
     w(la, "        (bool ok, ) = to.call{value: amt}(\"\");")
     w(la, "        if (!ok) revert VS_LaneFault_24();")
     w(la, "    }")
+    w(la, "")
+    w(la, "    function fundNativeRewards() external payable whenDeskLive {")
+    w(la, "        if (msg.value == 0) revert VS_ZeroAmt();")
+    w(la, "        emit Pulse_0(lineNonce, msg.sender, msg.value);")
+    w(la, "        unchecked { lineNonce += 1; }")
+    w(la, "    }")
+    w(la, "")
+    w(la, "    function fundTokenRewards(uint256 amount) external nonReentrant whenDeskLive {")
+    w(la, "        if (amount == 0) revert VS_ZeroAmt();")
+    w(la, "        if (address(stakeToken) == address(0)) revert VS_TokenUnset();")
+    w(la, "        VoloSafeERC20.safeTransferFrom(stakeToken, msg.sender, address(this), amount);")
+    w(la, "        emit Pulse_1(lineNonce, msg.sender, amount);")
+    w(la, "        unchecked { lineNonce += 1; }")
+    w(la, "    }")
+    w(la, "")
+    w(la, "    function _aggregateStaked() internal view returns (uint256 sum) {")
+    w(la, f"        for (uint256 i = 1; i <= {POOL_COUNT}; ++i) {{")
+    w(la, "            sum += pools[i].totalStakedWei;")
+    w(la, "        }")
+    w(la, "    }")
+    w(la, "")
+    w(la, "    function _seedEpoch(uint256 epochId) internal {")
+    w(la, "        VoloEpochCell storage e = epochs[epochId];")
+    w(la, "        e.startedAt = uint64(block.timestamp);")
+    w(la, "        e.weightSum = _aggregateStaked();")
+    w(la, "        (e.mixHA, e.mixHB) = _splitDigest(epochId, e.weightSum);")
+    w(la, "    }")
+    w(la, "")
+    w(la, "    function _splitDigest(uint256 epochId, uint256 weight) internal view returns (bytes32 hA, bytes32 hB) {")
+    w(la, "        hA = keccak256(abi.encode(epochId, weight, ADDRESS_A, _SALT_0));")
+    w(la, "        hB = keccak256(abi.encode(weight, epochId, ADDRESS_B, _SALT_1));")
+    w(la, "    }")
+    w(la, "")
+    w(la, "    function laneDigest(uint256 poolId, address staker) public view returns (bytes32) {")
+    w(la, "        (bytes32 hA, bytes32 hB) = _splitDigest(poolId, uint256(uint160(staker)));")
+    w(la, "        return keccak256(abi.encodePacked(hA, hB, ADDRESS_C, _SALT_2));")
+    w(la, "    }")
+    w(la, "")
+
+
+def emit_bootstrap(la: list[str]) -> None:
+    w(la, "    function _bootstrapPools() internal {")
+    locks = [
+        "7 days", "14 days", "30 days", "60 days", "90 days", "120 days", "180 days", "365 days",
+    ]
+    bps_list = [120, 180, 240, 310, 380, 450, 520, 600, 90, 150, 220, 290, 360, 430]
+    mins = [
+        "0.01 ether", "0.02 ether", "0.05 ether", "0.1 ether", "0.25 ether", "0.5 ether",
+        "1 ether", "2 ether", "0.005 ether", "0.03 ether", "0.08 ether", "0.15 ether",
+        "0.4 ether", "0.75 ether",
+    ]
+    for pid in range(1, POOL_COUNT + 1):
+        kind = "Native" if pid % 2 == 1 else "Erc20"
