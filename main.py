@@ -581,3 +581,50 @@ def emit_views(la: list[str]) -> None:
     w(la, "")
 
 
+def emit_attestation_helpers(la: list[str]) -> None:
+    for n in range(22):
+        w(la, f"    function attestLane_{n}(bytes32 digest) external whenDeskLive returns (bool) {{")
+        w(la, "        if (digest == bytes32(0)) revert VS_DigestMismatch();")
+        w(la, "        if (attestationConsumed[digest]) revert VS_LaneFault_25();")
+        w(la, "        attestationConsumed[digest] = true;")
+        w(la, f"        emit Pulse_{n % 12}(lineNonce, msg.sender, uint256(digest) & type(uint256).max);")
+        w(la, "        unchecked { lineNonce += 1; }")
+        w(la, "        return true;")
+        w(la, "    }")
+        w(la, "")
+
+
+def emit_pool_registry_views(la: list[str]) -> None:
+    for pid in range(1, POOL_COUNT + 1):
+        w(la, f"    function laneTag_{pid}() external view returns (bytes32) {{ return pools[{pid}].laneTag; }}")
+    w(la, "")
+
+
+def build() -> list[str]:
+    la: list[str] = []
+    emit_header(la)
+    emit_interfaces(la)
+    emit_libraries(la)
+    emit_contract_start(la)
+    emit_types_and_state(la)
+    emit_modifiers(la)
+    emit_constructor(la)
+    emit_admin(la)
+    emit_stake_ops(la)
+    emit_internal_core(la)
+    emit_bootstrap(la)
+    emit_views(la)
+    emit_attestation_helpers(la)
+    emit_pool_registry_views(la)
+    w(la, "}")
+    return la
+
+
+def main() -> None:
+    lines = build()
+    OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"Wrote {OUT} ({len(lines)} lines)")
+
+
+if __name__ == "__main__":
+    main()
